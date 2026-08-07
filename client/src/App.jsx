@@ -17,10 +17,9 @@ function ImageDropper() {
   }
   return (
     <div className="w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-      
+
       <label for="fileInput" className="drop-area">
-        Drop your image here: &nbsp;
-        <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} />
+        Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
       </label>
 
       {image && <img src={URL.createObjectURL(image)} alt="Dropped" />}
@@ -43,7 +42,7 @@ function FishCheck() {
     }
   }
   return (
-    <form onSubmit={checkFish} className="flex flex-col items-center p-4 bg-[#4545453e] rounded-md">
+    <form onSubmit={checkFish} className="flex flex-col items-center p-4 bg-(--bg-tertiary)">
       <input type="text" value={fish} onChange={(e) => setFish(e.target.value)} className="border border-gray-400 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
         Check Fish
@@ -72,7 +71,7 @@ function App() {
         <div className="w-[50%] mx-auto text-[#999] text-center bg-[#f0f0f0]">
           <FishCheck />
         </div>
-        <div className="w-[50%] mx-auto text-[#999] text-center bg-[#f0f0f012]">
+        <div className="w-[50%] mx-auto text-[#999] text-center bg-(--bg-secondary)">
           <ImageDropper />      
         </div>
         {apiData && apiData.map((user, index) => (
