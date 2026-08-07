@@ -1,17 +1,96 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
 
+function ImageDropper() {
+  const [image, setImage] = useState(null)
+
+  const handleImageChange = (e) => {
+    e.preventDefault()
+    const file = e.target.files[0]
+    if (file) {
+      setImage(file)
+    }
+  }
+  return (
+    <div className="w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+      
+      <label for="fileInput" className="drop-area">
+        Drop your image here: &nbsp;
+        <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} />
+      </label>
+
+      {image && <img src={URL.createObjectURL(image)} alt="Dropped" />}
+    </div>
+  )
+}
+
+function FishCheck() {
+  const [result, setResult] = useState(null)
+  const [fish, setFish] = useState('')
+
+  const checkFish = async (e) => {
+    e.preventDefault();
+    try{
+      const response = await axios.post('http://localhost:8080/api/fishcheck', { fish })
+      setResult(response.data.valid ? 'Valid fish' : 'Invalid fish');
+    } catch (error) {
+      console.error('Error checking fish:', error);
+      setResult('Error checking fish');
+    }
+  }
+  return (
+    <form onSubmit={checkFish} className="flex flex-col items-center p-4 bg-[#4545453e] rounded-md">
+      <input type="text" value={fish} onChange={(e) => setFish(e.target.value)} className="border border-gray-400 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
+        Check Fish
+      </button>
+      {result && <p className="text-green-500">{result}</p>}
+    </form>
+  )
+}
 function App() {
-  const [count, setCount] = useState(0)
+  const [apiData, setApiData] = useState(null)
+  
+  const fetchAPI = async () => {
+    const response = await axios.get('http://localhost:8080/api/data')
+    console.log('API response:', response.data)
+    setApiData(response.data.users)
+  }
+  
+  useEffect(() => {
+    fetchAPI()
+  }, [])
 
   return (
     <>
-      <section id="center">
+      <div className="w-full h-full  mx-auto ">
+        <h1 className="text-3xl font-bold underline ">Hello world!</h1>
+        <div className="w-[50%] mx-auto text-[#999] text-center bg-[#f0f0f0]">
+          <FishCheck />
+        </div>
+        <div className="w-[50%] mx-auto text-[#999] text-center bg-[#f0f0f012]">
+          <ImageDropper />      
+        </div>
+        {apiData && apiData.map((user, index) => (
+          <div key={index}>
+            <div className=" p-4 m-2 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ">
+              <p>{user.name}</p>
+              <p>{user.id}</p>
+            </div>
+          </div>
+        ))}
+      
+      </div>
+
+
+
+      {/* <section id="center">
         <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
+          <img src={heroImg} className="bg-amber-50" width="170" height="179" alt="" />
           <img src={reactLogo} className="framework" alt="React logo" />
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
@@ -111,10 +190,10 @@ function App() {
             </li>
           </ul>
         </div>
-      </section>
+      </section> */}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      {/* <div className="ticks"></div>
+      <section id="spacer"></section> */}
     </>
   )
 }
