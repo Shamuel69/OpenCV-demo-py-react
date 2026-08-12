@@ -1,28 +1,63 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
 
 function ImageDropper() {
   const [image, setImage] = useState(null)
+  const [imageAttributes, setImageAttributes] = useState(null);
+  const [pressed, setPressed] = useState(null);
+  const [error, setError] = useState(null);
+  const [todoList, setTodoList] = useState([]);
+  
+  const uploadImage = async () => {
+      if (!image) return;
+      const formData = new FormData();
+      formData.append("image", image);
+      
+      try{
+        const res = await axios.post('http://localhost:8080/api/upload', formData)
+        console.log(res.data.result)
+        setImageAttributes(res.data.result)
+      }catch (err){
+        setError('Error uploading image:', err)
+      } finally{
+        setPressed(prev => !prev)
+      } 
+    }
 
   const handleImageChange = (e) => {
     e.preventDefault()
-    const file = e.target.files[0]
-    if (file) {
-      setImage(file)
+    try{
+      const file = e.target.files[0]
+      if (file) setImage(file);
+    } catch (err) {
+      co
     }
+    
   }
   return (
-    <div className="w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-
-      <label for="fileInput" className="drop-area">
+    <div className="w-[35%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+      {error && (
+        <div className="bg-(--error) border-2 rounded-2 w-[80%] text-(--text-primary) p-2">
+          <label > {error}</label>
+        </div>
+      )}
+      <label htmlFor="fileInput" className=" ">
         Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
       </label>
+      <button type="button" onClick={uploadImage} className=" rounded-[5px] border-transparent p-2 bg-(--bg-tertiary) text-(--text-secondary) 
+      transition-all duration-200 hover:bg-(--bg-secondary)">
+        Upload Image
+      </button>
+      {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="max-w-[720px] max-h-[520px] p-4" />}
+      {imageAttributes && (
+        <div className="mt-4">
+          <h3>Image Attributes:</h3>
+          <p>Channels: {imageAttributes.Channels}</p>
+          <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
 
-      {image && <img src={URL.createObjectURL(image)} alt="Dropped" />}
+        </div>
+      )}
     </div>
   )
 }
@@ -30,7 +65,7 @@ function ImageDropper() {
 function FishCheck() {
   const [result, setResult] = useState(null)
   const [fish, setFish] = useState('')
-
+ 
   const checkFish = async (e) => {
     e.preventDefault();
     try{
@@ -53,7 +88,13 @@ function FishCheck() {
 }
 function App() {
   const [apiData, setApiData] = useState(null)
-  
+  const Configs_labels = ["Gaussian Blur", "Median Blur", "Bilateral Filter", "Canny"]
+  const Configs = [{name: "Gaussian Blur", kernalsize: [0, 0]},
+                  {name: "Median Blur", kernalsize: 0},
+                  {name: "Bilateral Filter", sigma_color: 75, sigma_space: 75},
+                  {name: "Canny", kernalsize: [0, 0]}]
+  const [valueConfigs, setValueConfigs] = useState([])
+    
   const fetchAPI = async () => {
     const response = await axios.get('http://localhost:8080/api/data')
     console.log('API response:', response.data)
@@ -64,24 +105,64 @@ function App() {
     fetchAPI()
   }, [])
 
+  const [myValue, setMyValue] = useState(1)
+
   return (
     <>
-      <div className="w-full h-full  mx-auto ">
-        <h1 className="text-3xl font-bold underline ">Hello world!</h1>
-        <div className="w-[50%] mx-auto text-[#999] text-center bg-[#f0f0f0]">
+      <div className="w-full h-screen md:h-dvh  mx-auto bg-(--bg-primary) ">
+        {/* <div className=" mx-auto text-[#999] text-center bg-[#f0f0f0]">
           <FishCheck />
+        </div> */}
+
+        <section id="header">
+          <div className="w-full h-[60px]   border-b-2 border-(--border)">
+            <div className='h-full w-[90%] mx-auto flex flex-row items-center justify-between '>
+              <h2 className='text-2xl hover:underline'>TinkerTabby</h2>
+              <div className="w-[20%]  p-2 flex gap-3">
+                <label className="hover:underline">More from Us</label>
+                <label className="hover:underline">About Us</label>
+              </div>
+
+            </div>
+          </div>
+        </section>
+        <div id="content" className="w-[95%] mx-auto flex flex-row justify-between">
+          <section id="images">
+            <div className=" mx-auto text-[#999] text-center flex  p-3">
+              <ImageDropper />      
+              <ImageDropper />      
+            </div>
+          </section>
+          <section id="inputs">
+            <div className="w-[360px] h-full border-l-2 shadow-2xl">
+              <h3 className="p-3">Configurations:</h3>
+              {
+                Configs.map(item => (
+                  <div>
+                    <label>{item.name}</label>
+                  </div>
+                ))
+              }
+              <div className="w-[90%] mx-auto ">
+                <label>Gausssian Blur</label>
+                <div className="flex w-[80%] justify-between">
+                  <p>1</p>
+                  <p>31</p>
+                </div>
+                <input type="range" min={1} max={99} step={2} value={myValue} onChange={(e => setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)))} className= "w-[80%] mx-auto cursor-pointer"/>
+              </div>
+            </div>
+
+          </section>
         </div>
-        <div className="w-[50%] mx-auto text-[#999] text-center bg-(--bg-secondary)">
-          <ImageDropper />      
-        </div>
-        {apiData && apiData.map((user, index) => (
+        {/* {apiData && apiData.map((user, index) => (
           <div key={index}>
             <div className=" p-4 m-2 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ">
               <p>{user.name}</p>
               <p>{user.id}</p>
             </div>
           </div>
-        ))}
+        ))} */}
       
       </div>
 
