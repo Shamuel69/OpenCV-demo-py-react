@@ -2,15 +2,25 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
 
-function ImageDropper() {
+function ImageDropper({input_output, upload_pressed=false}) {
   const [image, setImage] = useState(null)
   const [imageAttributes, setImageAttributes] = useState(null);
   const [pressed, setPressed] = useState(null);
   const [error, setError] = useState(null);
   const [todoList, setTodoList] = useState([]);
   
+
+  useEffect(() =>{
+    if (imageAttributes){
+      console.log("attributes: ", imageAttributes);
+      localStorage.setItem("Attributes", {channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]})
+    }
+    
+  }, [imageAttributes])
+
+
   const uploadImage = async () => {
-      if (!image) return;
+      if (!image && !upload_pressed) return;
       const formData = new FormData();
       formData.append("image", image);
       
@@ -25,6 +35,12 @@ function ImageDropper() {
       } 
     }
 
+  useEffect(() => {
+    if(upload_pressed) {
+      uploadImage
+    }
+  }, [upload_pressed])  
+
   const handleImageChange = (e) => {
     e.preventDefault()
     try{
@@ -36,7 +52,7 @@ function ImageDropper() {
     
   }
   return (
-    <div className="w-[35%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+    <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
       {error && (
         <div className="bg-(--error) border-2 rounded-2 w-[80%] text-(--text-primary) p-2">
           <label > {error}</label>
@@ -45,10 +61,8 @@ function ImageDropper() {
       <label htmlFor="fileInput" className=" ">
         Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
       </label>
-      <button type="button" onClick={uploadImage} className=" rounded-[5px] border-transparent p-2 bg-(--bg-tertiary) text-(--text-secondary) 
-      transition-all duration-200 hover:bg-(--bg-secondary)">
-        Upload Image
-      </button>
+      
+      {/* this is where you need to change the image */}
       {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="max-w-[720px] max-h-[520px] p-4" />}
       {imageAttributes && (
         <div className="mt-4">
@@ -88,13 +102,15 @@ function FishCheck() {
 }
 function App() {
   const [apiData, setApiData] = useState(null)
-  const Configs_labels = ["Gaussian Blur", "Median Blur", "Bilateral Filter", "Canny"]
+  const [submitted, setSubmitted] = useState(false)
   const Configs = [{name: "Gaussian Blur", kernalsize: [0, 0]},
                   {name: "Median Blur", kernalsize: 0},
                   {name: "Bilateral Filter", sigma_color: 75, sigma_space: 75},
                   {name: "Canny", kernalsize: [0, 0]}]
+
+  const [myValue, setMyValue] = useState({})
   const [valueConfigs, setValueConfigs] = useState([])
-    
+
   const fetchAPI = async () => {
     const response = await axios.get('http://localhost:8080/api/data')
     console.log('API response:', response.data)
@@ -102,10 +118,41 @@ function App() {
   }
   
   useEffect(() => {
+    if(submitted){
+      console.log("value ",myValue)
+      setValueConfigs(myValue)
+    }
+  }, [submitted])
+
+
+  useEffect(() => {
+    try{
+      if (valueConfigs) {
+        const localStorageUpdate = async ({name, data}) => {
+          const configs = localStorage.getItem("configs") || {};
+          if (configs.length < 1) {
+            localStorage.setItem({name: name, data: data})
+          } 
+          configs.map(Config => {
+            if (Config.name === name) {
+              localStorage.setItem({name: name, data: data})
+            }
+          })
+        }
+        // valueConfigs should look like [{name: "name", data: {kernalsize: 0}}]
+        valueConfigs.map(item => localStorageUpdate(item.name, item.data))
+      }
+
+    }catch (err){
+      console.log("Something went wrong with uploading settings! ", err)
+      console.log("valueconfig: ", valueConfigs)
+    }
+  }, [valueConfigs])
+
+  useEffect(() => {
     fetchAPI()
   }, [])
 
-  const [myValue, setMyValue] = useState(1)
 
   return (
     <>
@@ -129,8 +176,8 @@ function App() {
         <div id="content" className="w-[95%] mx-auto flex flex-row justify-between">
           <section id="images">
             <div className=" mx-auto text-[#999] text-center flex  p-3">
-              <ImageDropper />      
-              <ImageDropper />      
+              <ImageDropper input_output="input" upload_pressed={submitted}/>      
+              <ImageDropper input_output="output"/>      
             </div>
           </section>
           <section id="inputs">
@@ -144,13 +191,52 @@ function App() {
                 ))
               }
               <div className="w-[90%] mx-auto ">
-                <label>Gausssian Blur</label>
-                <div className="flex w-[80%] justify-between">
-                  <p>1</p>
-                  <p>31</p>
+                <div>
+                  <label>Gausssian Blur</label>
+                  <div className="flex w-[80%] justify-between">
+                    <p>1</p>
+                    <p>{myValue.GB?.kernalsize ?? 1}</p>
+                    <p>31</p>
+                  </div>
+                  {/* setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)) && */}
+                  <input type="range" min={1} max={31} step={2} value={myValue.GB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, GB:{name: "Gaussian Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
                 </div>
-                <input type="range" min={1} max={99} step={2} value={myValue} onChange={(e => setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)))} className= "w-[80%] mx-auto cursor-pointer"/>
+                <div>
+                  <label>Median Blur</label>
+                  <div className="flex w-[80%] justify-between">
+                    <p>1</p>
+                    <p>{myValue.MB?.kernalsize ?? 1}</p>
+                    <p>31</p>
+                  </div>
+                  <input type="range" min={1} max={31} step={2} value={myValue.MB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, MB:{name: "Median Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                </div>
+                <div>
+                  <label>Bilateral Blur</label>
+                  <div className="flex w-[80%] justify-between">
+                    <p>1</p>
+                    <p>{myValue.BB?.diameter ?? 1}</p>
+                    <p>15</p>
+                  </div>
+                  <input type="range" min={1} max={15} step={2} value={myValue.BB?.diameter ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB,name: "Bilateral Filter", diameter: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                  <div className="flex w-[80%] justify-between">
+                    <p>1</p>
+                    <p>{myValue.BB?.sigmaColor ?? 1}</p>
+                    <p>150</p>
+                  </div>
+                  
+                  <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaColor ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaColor: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                  <div className="flex w-[80%] justify-between">
+                    <p>1</p>
+                    <p>{myValue.BB?.sigmaSpace ?? 1}</p>
+                    <p>150</p>
+                  </div>
+                  <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaSpace ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaSpace: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                </div>
               </div>
+              <button type="button" onClick={() => setSubmitted(prevState => !prevState)} className=" rounded-[5px] border-transparent p-2 bg-(--bg-tertiary) text-(--text-secondary) 
+      transition-all duration-200 hover:bg-(--bg-secondary)">
+        Upload Image
+      </button>
             </div>
 
           </section>
