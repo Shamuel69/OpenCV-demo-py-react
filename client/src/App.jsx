@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
 
+
+
 function ImageDropper({input_output, upload_pressed=false}) {
   const [image, setImage] = useState(null)
   const [imageAttributes, setImageAttributes] = useState(null);
   const [pressed, setPressed] = useState(null);
   const [error, setError] = useState(null);
-  const [todoList, setTodoList] = useState([]);
   
 
   useEffect(() =>{
@@ -15,15 +16,27 @@ function ImageDropper({input_output, upload_pressed=false}) {
       console.log("attributes: ", imageAttributes);
       localStorage.setItem("Attributes", {channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]})
     }
-    
   }, [imageAttributes])
 
-
   const uploadImage = async () => {
-      if (!image && !upload_pressed) return;
+    const stored = localStorage.getItem("configs");
+    console.log("pog dog")
+    let config = stored ? JSON.parse(stored) : null;
+    if (!image && !upload_pressed && !config) return;
+      console.log("fog dog")
+      
+      if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
+        const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
+        config = updated_configs
+        console.log("log dog")
+        
+        localStorage.setItem("configs", JSON.stringify(config))
+        console.log(config)
+      }
+      console.log("hog ", config)
       const formData = new FormData();
       formData.append("image", image);
-      
+      formData.append("config", config)
       try{
         const res = await axios.post('http://localhost:8080/api/upload', formData)
         console.log(res.data.result)
@@ -34,10 +47,12 @@ function ImageDropper({input_output, upload_pressed=false}) {
         setPressed(prev => !prev)
       } 
     }
+  
 
   useEffect(() => {
     if(upload_pressed) {
-      uploadImage
+      
+      uploadImage()
     }
   }, [upload_pressed])  
 
@@ -47,7 +62,7 @@ function ImageDropper({input_output, upload_pressed=false}) {
       const file = e.target.files[0]
       if (file) setImage(file);
     } catch (err) {
-      co
+      console.error("ts barnicals (from handleImageChange)")
     }
     
   }
@@ -103,11 +118,6 @@ function FishCheck() {
 function App() {
   const [apiData, setApiData] = useState(null)
   const [submitted, setSubmitted] = useState(false)
-  const Configs = [{name: "Gaussian Blur", kernalsize: [0, 0]},
-                  {name: "Median Blur", kernalsize: 0},
-                  {name: "Bilateral Filter", sigma_color: 75, sigma_space: 75},
-                  {name: "Canny", kernalsize: [0, 0]}]
-
   const [myValue, setMyValue] = useState({})
   const [valueConfigs, setValueConfigs] = useState([])
 
@@ -124,28 +134,33 @@ function App() {
     }
   }, [submitted])
 
-
+// PLEASE make it so it clears the localstorage when the image is returned
   useEffect(() => {
     try{
-      if (valueConfigs) {
-        const localStorageUpdate = async ({name, data}) => {
-          const configs = localStorage.getItem("configs") || {};
-          if (configs.length < 1) {
-            localStorage.setItem({name: name, data: data})
-          } 
-          configs.map(Config => {
-            if (Config.name === name) {
-              localStorage.setItem({name: name, data: data})
-            }
-          })
-        }
-        // valueConfigs should look like [{name: "name", data: {kernalsize: 0}}]
-        valueConfigs.map(item => localStorageUpdate(item.name, item.data))
-      }
+      if (!valueConfigs || valueConfigs.length < 1) return;
+      if (submitted){
+        const configs = localStorage.getItem("configs") || {};
+        if (configs.length > 0) {
+          localStorage.removeItem("configs");
+          localStorage.setItem("configs", JSON.stringify(valueConfigs))
+          console.log("Uploaded configs! (around line:136)")
 
+          return
+        } 
+        console.log("Uploaded configs! (around line:136)")
+        localStorage.setItem("configs", JSON.stringify(valueConfigs))
+
+      }
+      
+      // valueConfigs should look like [{name: "name", data: {kernalsize: 0}}]
+      
     }catch (err){
       console.log("Something went wrong with uploading settings! ", err)
       console.log("valueconfig: ", valueConfigs)
+
+    }finally{
+      console.log("frog")
+      // uploadImage()
     }
   }, [valueConfigs])
 
@@ -182,184 +197,98 @@ function App() {
           </section>
           <section id="inputs">
             <div className="w-[360px] h-full border-l-2 shadow-2xl">
-              <h3 className="p-3">Configurations:</h3>
-              {
-                Configs.map(item => (
-                  <div>
-                    <label>{item.name}</label>
+              <h3 className="p-2">Configurations:</h3>
+              <div className="w-full mx-auto flex flex-col gap-1">
+                <div className="flex flex-col  p-2">
+                  <label className="text-lg">Gausssian Blur</label>
+                  <div className="flex flex-col p-1 ">
+                    <label>Kernal size</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.GB?.kernalsize ?? 1}</p>
+                      <p>31</p>
+                    </div>
+                    {/* setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)) && */}
+                    <input type="range" min={1} max={31} step={2} value={myValue.GB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, GB:{name: "Gaussian Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
                   </div>
-                ))
-              }
-              <div className="w-[90%] mx-auto ">
-                <div>
-                  <label>Gausssian Blur</label>
-                  <div className="flex w-[80%] justify-between">
-                    <p>1</p>
-                    <p>{myValue.GB?.kernalsize ?? 1}</p>
-                    <p>31</p>
-                  </div>
-                  {/* setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)) && */}
-                  <input type="range" min={1} max={31} step={2} value={myValue.GB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, GB:{name: "Gaussian Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
                 </div>
-                <div>
-                  <label>Median Blur</label>
-                  <div className="flex w-[80%] justify-between">
-                    <p>1</p>
-                    <p>{myValue.MB?.kernalsize ?? 1}</p>
-                    <p>31</p>
-                  </div>
-                  <input type="range" min={1} max={31} step={2} value={myValue.MB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, MB:{name: "Median Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                </div>
-                <div>
-                  <label>Bilateral Blur</label>
-                  <div className="flex w-[80%] justify-between">
-                    <p>1</p>
-                    <p>{myValue.BB?.diameter ?? 1}</p>
-                    <p>15</p>
-                  </div>
-                  <input type="range" min={1} max={15} step={2} value={myValue.BB?.diameter ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB,name: "Bilateral Filter", diameter: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  <div className="flex w-[80%] justify-between">
-                    <p>1</p>
-                    <p>{myValue.BB?.sigmaColor ?? 1}</p>
-                    <p>150</p>
-                  </div>
-                  
-                  <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaColor ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaColor: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  <div className="flex w-[80%] justify-between">
-                    <p>1</p>
-                    <p>{myValue.BB?.sigmaSpace ?? 1}</p>
-                    <p>150</p>
-                  </div>
-                  <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaSpace ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaSpace: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                </div>
-              </div>
-              <button type="button" onClick={() => setSubmitted(prevState => !prevState)} className=" rounded-[5px] border-transparent p-2 bg-(--bg-tertiary) text-(--text-secondary) 
-      transition-all duration-200 hover:bg-(--bg-secondary)">
-        Upload Image
-      </button>
-            </div>
+                <div className="flex flex-col p-2">
 
+                  <label className="text-lg">Median Blur</label>
+                  <div className="flex flex-col p-1 ">
+                    <label>Kernal size</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.MB?.kernalsize ?? 1}</p>
+                      <p>31</p>
+                    </div>
+                    <input type="range" min={1} max={31} step={2} value={myValue.MB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, MB:{name: "Median Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                  
+                  </div>
+                </div>
+                <div className="flex flex-col p-2">
+                  <label className="text-lg">Bilateral Blur</label>
+                  <div className="flex flex-col p-1 ">
+                    <label>Diameter</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.BB?.diameter ?? 1}</p>
+                      <p>15</p>
+                    </div>
+                    <input type="range" min={1} max={15} step={2} value={myValue.BB?.diameter ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB,name: "Bilateral Filter", diameter: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
+
+                    <label>Sigma Color</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.BB?.sigmaColor ?? 1}</p>
+                      <p>150</p>
+                    </div>
+                    <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaColor ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaColor: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+
+                    <label>Sigma Space</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.BB?.sigmaSpace ?? 1}</p>
+                      <p>150</p>
+                    </div>
+                    <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaSpace ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaSpace: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                  </div>
+                </div>           
+
+                <div className="flex flex-col p-2">
+                  <label className="text-lg">Canny Filter</label>
+                  <div className="flex flex-col p-1 ">
+                    <label>Lower Threshold</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.CF?.threshold1 ?? 1}</p>
+                      <p>250</p>
+                    </div>
+                    <input type="range" min={1} max={250} step={2} value={myValue.CF?.threshold1 ?? 1} onChange={(e => setMyValue({...myValue, CF:{...myValue.CF,name: "Canny Filter", threshold1: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
+
+                    <label>Upper Threshold</label>
+                    <div className="flex flex-row mx-auto w-[80%] justify-between">
+                      <p>1</p>
+                      <p>{myValue.CF?.threshold2 ?? 1}</p>
+                      <p>350</p>
+                    </div>
+                    <input type="range" min={1} max={350} step={2} value={myValue.CF?.threshold2 ?? 1} onChange={(e => setMyValue({...myValue, CF:{...myValue.CF, name: "Canny Filter", threshold2: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
+                  </div>
+                </div>         
+              </div>
+              <button type="button" onClick={() => setSubmitted(prev=>!prev)} className=" rounded-[5px] border-transparent p-2 
+              bg-(--bg-tertiary) text-(--text-secondary) 
+              transition-all duration-200 hover:bg-(--bg-secondary)">
+                Upload Image
+              </button>
+            </div>
           </section>
         </div>
-        {/* {apiData && apiData.map((user, index) => (
-          <div key={index}>
-            <div className=" p-4 m-2 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ">
-              <p>{user.name}</p>
-              <p>{user.id}</p>
-            </div>
-          </div>
-        ))} */}
       
       </div>
 
 
 
-      {/* <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="bg-amber-50" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section> */}
-
-      {/* <div className="ticks"></div>
-      <section id="spacer"></section> */}
     </>
   )
 }
