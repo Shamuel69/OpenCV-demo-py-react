@@ -24,7 +24,7 @@ function ImageDropper({input_output, upload_pressed=false}) {
     let config = stored ? JSON.parse(stored) : null;
     if (!image && !upload_pressed && !config) return;
       console.log("fog dog")
-      
+      // we will prolly end up doing this for bilateral filters too 
       if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
         const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
         config = updated_configs
