@@ -36,7 +36,7 @@ function ImageDropper({input_output, upload_pressed=false}) {
       console.log("hog ", config)
       const formData = new FormData();
       formData.append("image", image);
-      formData.append("config", config)
+      formData.append("config", config);
       try{
         const res = await axios.post('http://localhost:8080/api/upload', formData)
         console.log(res.data.result)
@@ -51,7 +51,6 @@ function ImageDropper({input_output, upload_pressed=false}) {
 
   useEffect(() => {
     if(upload_pressed) {
-      
       uploadImage()
     }
   }, [upload_pressed])  
