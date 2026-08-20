@@ -4,8 +4,9 @@ import './App.css'
 
 
 
-function ImageDropper({input_output, upload_pressed=false}) {
+function ImageDropper({ upload_pressed=false}) {
   const [image, setImage] = useState(null)
+  const [uploadedImage, setUploadedImage] = useState(null);
   const [imageAttributes, setImageAttributes] = useState(null);
   const [pressed, setPressed] = useState(null);
   const [error, setError] = useState(null);
@@ -14,39 +15,37 @@ function ImageDropper({input_output, upload_pressed=false}) {
   useEffect(() =>{
     if (imageAttributes){
       console.log("attributes: ", imageAttributes);
-      localStorage.setItem("Attributes", {channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]})
+      localStorage.setItem("Attributes", JSON.stringify({channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]}))
     }
   }, [imageAttributes])
 
   const uploadImage = async () => {
     const stored = localStorage.getItem("configs");
-    console.log("pog dog")
     let config = stored ? JSON.parse(stored) : null;
-    if (!image && !upload_pressed && !config) return;
-      console.log("fog dog")
-      // we will prolly end up doing this for bilateral filters too 
-      if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
-        const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
-        config = updated_configs
-        console.log("log dog")
-        
-        localStorage.setItem("configs", JSON.stringify(config))
-        console.log(config)
-      }
-      console.log("hog ", config)
-      const formData = new FormData();
-      formData.append("image", image);
-      formData.append("config", config);
-      try{
-        const res = await axios.post('http://localhost:8080/api/upload', formData)
-        console.log(res.data.result)
-        setImageAttributes(res.data.result)
-      }catch (err){
-        setError('Error uploading image:', err)
-      } finally{
-        setPressed(prev => !prev)
-      } 
+    if (!image || !config) return;
+    if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
+      const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
+      config = updated_configs
+      console.log("log dog")
+      
+      localStorage.setItem("configs", JSON.stringify(config))
     }
+    console.log("hog ", config)
+    const formData = new FormData();
+    formData.append("image", image);
+    formData.append("config", JSON.stringify(config));
+    try{
+      const res = await axios.post('http://localhost:8080/api/upload', formData,{responseType:"blob"})
+      console.log("Recieved processed image response! ", res.data.result)
+      const imageURL = URL.createObjectURL(res.data);
+      setUploadedImage(imageURL);
+      setImageAttributes(res.data.result)
+    }catch (err){
+      setError('Error uploading image:', err)
+    } finally{
+      setPressed(prev => !prev)
+    } 
+  }
   
 
   useEffect(() => {
@@ -66,54 +65,36 @@ function ImageDropper({input_output, upload_pressed=false}) {
     
   }
   return (
-    <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-      {error && (
-        <div className="bg-(--error) border-2 rounded-2 w-[80%] text-(--text-primary) p-2">
-          <label > {error}</label>
-        </div>
-      )}
-      <label htmlFor="fileInput" className=" ">
-        Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
-      </label>
-      
-      {/* this is where you need to change the image */}
-      {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="max-w-[720px] max-h-[520px] p-4" />}
-      {imageAttributes && (
-        <div className="mt-4">
-          <h3>Image Attributes:</h3>
-          <p>Channels: {imageAttributes.Channels}</p>
-          <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
-
-        </div>
-      )}
+    <div className="w-full flex flex-row justify-between gap-2.5">
+      <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+        <label htmlFor="fileInput" className=" flex flex-col">
+          Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
+        </label>
+        
+        {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="max-w-[720px] max-h-[520px] p-4" />}
+        {imageAttributes && (
+          <div className="mt-4">
+            <h3>Image Attributes:</h3>
+            <p>Channels: {imageAttributes.Channels}</p>
+            <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
+          </div>
+        )}
+      </div>
+      <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-solid border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+        
+        {!uploadedImage && (
+        <label>
+            Your image will show up here!
+        </label>
+        )}
+        {uploadedImage && (
+        <img src={uploadedImage} alt="Processed" className="max-w-[720px] max-h-[520px] p-4"/>
+        )}
+      </div>
     </div>
   )
 }
 
-function FishCheck() {
-  const [result, setResult] = useState(null)
-  const [fish, setFish] = useState('')
- 
-  const checkFish = async (e) => {
-    e.preventDefault();
-    try{
-      const response = await axios.post('http://localhost:8080/api/fishcheck', { fish })
-      setResult(response.data.valid ? 'Valid fish' : 'Invalid fish');
-    } catch (error) {
-      console.error('Error checking fish:', error);
-      setResult('Error checking fish');
-    }
-  }
-  return (
-    <form onSubmit={checkFish} className="flex flex-col items-center p-4 bg-(--bg-tertiary)">
-      <input type="text" value={fish} onChange={(e) => setFish(e.target.value)} className="border border-gray-400 rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">
-        Check Fish
-      </button>
-      {result && <p className="text-green-500">{result}</p>}
-    </form>
-  )
-}
 function App() {
   const [apiData, setApiData] = useState(null)
   const [submitted, setSubmitted] = useState(false)
@@ -133,7 +114,6 @@ function App() {
     }
   }, [submitted])
 
-// PLEASE make it so it clears the localstorage when the image is returned
   useEffect(() => {
     try{
       if (!valueConfigs || valueConfigs.length < 1) return;
@@ -151,7 +131,6 @@ function App() {
 
       }
       
-      // valueConfigs should look like [{name: "name", data: {kernalsize: 0}}]
       
     }catch (err){
       console.log("Something went wrong with uploading settings! ", err)
@@ -159,7 +138,6 @@ function App() {
 
     }finally{
       console.log("frog")
-      // uploadImage()
     }
   }, [valueConfigs])
 
@@ -187,15 +165,14 @@ function App() {
             </div>
           </div>
         </section>
-        <div id="content" className="w-[95%] mx-auto flex flex-row justify-between">
-          <section id="images">
-            <div className=" mx-auto text-[#999] text-center flex  p-3">
-              <ImageDropper input_output="input" upload_pressed={submitted}/>      
-              <ImageDropper input_output="output"/>      
+        <div id="content" className="w-[95%] mx-auto flex flex-row">
+          <section id="image_" className="flex-1 min-w-0">
+            <div className=" w-full  p-3">
+              <ImageDropper upload_pressed={submitted}/>      
             </div>
           </section>
-          <section id="inputs">
-            <div className="w-[360px] h-full border-l-2 shadow-2xl">
+          <section id="inputs" className=" w-[360px] shrink-0">
+            <div className="w-full h-full border-l-2 shadow-2xl">
               <h3 className="p-2">Configurations:</h3>
               <div className="w-full mx-auto flex flex-col gap-1">
                 <div className="flex flex-col  p-2">
